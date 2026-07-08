@@ -5,14 +5,15 @@
 [![PyPI version](https://img.shields.io/pypi/v/tokenseive.svg)](https://pypi.org/project/tokenseive/)
 [![Python versions](https://img.shields.io/pypi/pyversions/tokenseive.svg)](https://pypi.org/project/tokenseive/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Tests](https://img.shields.io/badge/tests-58%20passing-brightgreen.svg)](#testing)
+[![Tests](https://img.shields.io/badge/tests-82%20passing-brightgreen.svg)](#testing)
 
 TokenSeive is a standalone, **framework-agnostic** library that shrinks the
-three things that eat your context window:
+four things that eat your context window:
 
 | Layer | What it does | Dependency cost |
 |-------|--------------|-----------------|
 | **Compress** | Shrinks *input* prompts with deterministic rules (and optional ML). | **Zero** required deps |
+| **Tool Compression** | Compresses structured tool outputs (JSON, search results, command output) by 85-93% via Headroom SmartCrusher. | Zero (fallback); headroom-ai optional |
 | **Map** | Turns a codebase into a token-budgeted ranked map / code graph. | Zero (regex fallback); tree-sitter optional |
 | **Behavioral** | Cuts *output* tokens by injecting a "lazy dev" ruleset. | Zero required deps |
 
@@ -25,13 +26,14 @@ OpenAI, or plain Python — because it imports nothing from them.
 
 ```bash
 # Core: works with plain Python 3.9+. Nothing else required.
-pip install tokenseive
+pip install tokenseive                    # zero deps
 
 # Optional extras
-pip install tokenseive[tokens]   # accurate token counts via tiktoken
-pip install tokenseive[ml]       # LLMLingua-2 + Selective Context backends
-pip install tokenseive[mapper]   # tree-sitter parsing + graphify code graphs
-pip install tokenseive[all]      # everything
+pip install tokenseive[tokens]            # accurate token counts via tiktoken
+pip install tokenseive[ml]                # LLMLingua-2 + Selective Context backends
+pip install tokenseive[mapper]            # tree-sitter parsing + graphify code graphs
+pip install tokenseive[headroom]          # tool output compression (Headroom SmartCrusher)
+pip install tokenseive[all]               # everything
 ```
 
 | Extra | Adds | When you want it |
@@ -39,7 +41,8 @@ pip install tokenseive[all]      # everything
 | `tokens` | `tiktoken` | Real GPT-4o token counts (otherwise a fast heuristic) |
 | `ml` | `llmlingua`, `selective-context` | Higher compression ratios on long docs |
 | `mapper` | `tree-sitter`, `tree-sitter-language-pack`, `graphifyy` | Precise multi-language parsing & visual code graphs |
-| `all` | all of the above | The full experience |
+| `headroom` | `headroom-ai` | Compress structured tool outputs (JSON, search results, command stdout) by 85-93% |
+| `all` | all of the above + `headroom` | The full experience |
 
 ---
 
@@ -89,34 +92,86 @@ system_prompt = base_prompt + "\n\n" + ruleset.get_instructions()
 # working diff — typically 22–54% fewer output tokens.
 ```
 
+### 4. Compress tool output (zero deps)
+
+```python
+from tokenseive import HeadroomCompressor
+
+compressor = HeadroomCompressor()
+result = compressor.compress_tool_output("search_files", json_output)
+print(f"{result.tokens_saved} tokens saved ({result.compression_ratio:.1%})")
+# -> '1295 tokens saved (89.1%)'
+```
+
+`HeadroomCompressor` wraps Headroom's **SmartCrusher** to shrink structured tool
+outputs (JSON, search results, file listings) by **85-93%**. When `headroom-ai`
+isn't installed it falls back to deterministic array-truncation / structure
+collapsing, so it always returns a usable result. Install the real engine with
+`pip install tokenseive[headroom]`.
+
+---
+
+## Tool Output Compression
+
+Compress structured tool outputs (JSON, search results, file listings) by **85-93%**
+using Headroom's **SmartCrusher**.
+
+```python
+from tokenseive import HeadroomCompressor
+
+compressor = HeadroomCompressor()
+
+# Compress a single tool result
+result = compressor.compress_tool_output("search_files", json_output)
+print(f"{result.tokens_saved} tokens saved ({result.compression_ratio:.1%})")
+
+# Check whether a tool result should be compressed
+if compressor.should_compress("grep", large_output):
+    compressed = compressor.compress_tool_output("grep", large_output)
+
+# Batch-compress conversation history (protects the most recent turns)
+compressed_messages = compressor.compress_messages(messages, protect_recent=4)
+```
+
+### How it works
+- **SmartCrusher** — truncates large arrays with `[N omitted]` summaries, collapses repetitive structures, and aggregates result lists.
+- **Tool-specific policy** — always compress `search_files` / `grep` / `list_files`; never compress `bash` / `write_file` / `edit_file`.
+- **Graceful fallback** — when `headroom-ai` isn't installed, applies deterministic compression (array truncation, structure collapsing).
+
+| Tool output type | Before | After | Savings |
+|---|---|---|---|
+| File search (200 files) | 14,481 chars | 759 chars | **94.8%** |
+| JSON API response | 27,607 tokens | 2,719 tokens | **90.1%** |
+| Multi-tool turn (3 tools) | 26,890 tokens | 1,911 tokens | **92.9%** |
+
 ---
 
 ## Architecture
 
 ```
-                         ┌──────────────────────────────────────┐
-                         │              Your Agent               │
-                         │  (LangChain / AutoGen / CrewAI / raw) │
-                         └───────────────┬──────────────────────┘
-                                         │  system prompt + context
-          ┌──────────────────────────────┼──────────────────────────────┐
-          ▼                              ▼                              ▼
- ┌─────────────────┐          ┌────────────────────┐          ┌──────────────────┐
- │   COMPRESS      │          │       MAP          │          │   BEHAVIORAL     │
- │  (input side)   │          │   (context side)   │          │  (output side)   │
- ├─────────────────┤          ├────────────────────┤          ├──────────────────┤
- │ RuleBased       │          │ CodebaseMapper     │          │ BehavioralRuleset│
- │  Compressor     │          │  get_repo_map()    │          │  off/lite/full/  │
- │ LLMLingua-2     │          │  get_code_graph()  │          │  ultra modes     │
- │ SelectiveContext│          │  find / trace /    │          │  apply_to()      │
- │ CompressionPipe │          │  context queries   │          │                  │
- │  line (cascade) │          │                    │          │                  │
- └─────────────────┘          └────────────────────┘          └──────────────────┘
-   rules: 0 deps                 regex: 0 deps                   0 deps
-   ml:    tokenseive[ml]         treesitter: tokenseive[mapper]
+                           ┌──────────────────────────────────────┐
+                           │              Your Agent              │
+                           │ (LangChain / AutoGen / CrewAI / raw) │
+                           └──────────────────┬───────────────────┘
+                                              │  system prompt + context
+          ┌──────────────────────┬───────────┴───────────┬──────────────────────┐
+          ▼                      ▼                       ▼                      ▼
+ ┌─────────────────┐  ┌────────────────────┐  ┌────────────────────┐  ┌──────────────────┐
+ │     COMPRESS    │  │  TOOL COMPRESSION  │  │        MAP         │  │    BEHAVIORAL    │
+ │   (input side)  │  │   (tool results)   │  │   (context side)   │  │  (output side)   │
+ ├─────────────────┤  ├────────────────────┤  ├────────────────────┤  ├──────────────────┤
+ │ RuleBased       │  │ HeadroomCompressor │  │ CodebaseMapper     │  │ BehavioralRuleset│
+ │  Compressor     │  │ + SmartCrusher     │  │  get_repo_map()    │  │  off/lite/full/  │
+ │ LLMLingua-2     │  │ compress_messages()│  │  get_code_graph()  │  │  ultra modes     │
+ │ SelectiveContext│  │ should_compress()  │  │  find / trace /    │  │  apply_to()      │
+ │ CompressionPipe │  │                    │  │  context queries   │  │                  │
+ │  line (cascade) │  │                    │  │                    │  │                  │
+ └─────────────────┘  └────────────────────┘  └────────────────────┘  └──────────────────┘
+   rules: 0 deps        fallback: 0 deps        regex: 0 deps           0 deps
+   ml:    tokenseive[ml]   headroom: [headroom]    treesitter: tokenseive[mapper]
 ```
 
-Each layer is **independent** — use one, two, or all three.
+Each layer is **independent** — use one, two, three, or all four.
 
 ---
 
@@ -187,6 +242,26 @@ the extra isn't installed).
 | `apply_to(prompt, separator="\n\n")` | `str` | Append ruleset to a prompt. |
 
 Modes: `off` (inject nothing), `lite`, `full` *(default)*, `ultra` (YAGNI extremist).
+
+### Tool Output Compression ([`tokenseive/tool_compression/`](tokenseive/tool_compression/__init__.py))
+
+#### `HeadroomCompressor(policy=None, strict=False, ...)`
+Compress structured tool outputs via Headroom's **SmartCrusher**, with a
+deterministic zero-dependency fallback when `headroom-ai` is absent.
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `compress_tool_output(tool_name, content)` | `ToolCompressionResult` | Compress a single tool result (always returns a usable result). |
+| `should_compress(tool_name, content)` | `bool` | Whether a result is worth compressing (policy + size gate). |
+| `compress_messages(messages, protect_recent=None)` | `list[dict]` | Batch-compress older `tool` messages in a conversation. |
+| `available()` | `bool` | Whether the real `headroom-ai` engine is importable. |
+
+`ToolCompressionResult` mirrors `CompressionResult` (`.compressed_text`,
+`.tokens_saved`, `.compression_ratio`, `.transforms_applied`, `.as_dict()`).
+Tool policy: always compress `search_files` / `grep` / `list_files`; never
+compress `bash` / `write_file` / `edit_file`. Pass `strict=True` to require the
+real engine instead of the built-in fallback. *(requires `[headroom]` for the
+real SmartCrusher engine; the fallback needs no extra deps.)*
 
 ---
 
@@ -283,6 +358,7 @@ complete, runnable pattern (with a codebase map appended via
 | Protected regions (code, XML, identity) | ✅ | ❌ | ❌ | ❌ |
 | Codebase repo mapping | ✅ | ❌ | ❌ | ❌ |
 | Output-token ruleset | ✅ | ❌ | ❌ | ❌ |
+| Tool output compression (85-93%) | ✅ | ❌ | ❌ | ❌ |
 | Multi-backend cascade | ✅ | single | single | n/a |
 | Framework-agnostic | ✅ | ✅ | ✅ | ❌ |
 
@@ -301,8 +377,9 @@ tokenseive/
 │   ├── utils.py               # Token counting (tiktoken-or-heuristic) + sentinels
 │   ├── compressors/           # rule_based, llmlingua2, selective, pipeline
 │   ├── mapper/                # repo_map, code_graph, queries
-│   └── behavioral/            # output-optimization ruleset
-├── tests/                     # 58 tests, run with zero deps
+│   ├── behavioral/            # output-optimization ruleset
+│   └── tool_compression/      # headroom SmartCrusher (tool-output compression)
+├── tests/                     # 82 tests, run with zero deps
 └── examples/                  # basic, ml, repo_mapping, agent_integration
 ```
 
@@ -310,7 +387,7 @@ tokenseive/
 
 ```bash
 pip install tokenseive[dev]   # pytest + pytest-cov
-pytest                        # 58 tests, all pass with zero optional deps
+pytest                        # 82 tests, all pass with zero optional deps
 ```
 
 The full suite runs with **no extras installed** — the rule-based compressor,
