@@ -31,6 +31,7 @@ from .compressors import (
     SelectiveContextCompressor,
 )
 from .mapper import CodebaseMapper
+from .tool_compression import HeadroomCompressor
 
 __version__ = "1.0.0"
 
@@ -43,4 +44,5 @@ __all__ = [
     "SelectiveContextCompressor",
     "BehavioralRuleset",
     "CodebaseMapper",
+    "HeadroomCompressor",
 ]

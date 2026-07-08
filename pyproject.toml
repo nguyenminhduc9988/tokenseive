@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tokenseive"
-version = "1.0.0"
+version = "1.1.0"
 description = "Multi-layer token optimization for LLM applications — compress prompts, map codebases, reduce output"
 readme = "README.md"
 license = "MIT"
@@ -44,7 +44,10 @@ dependencies = []
 ml = ["llmlingua>=0.2", "selective-context>=0.1"]
 mapper = ["tree-sitter>=0.21", "tree-sitter-language-pack>=0.1", "graphifyy>=0.8"]
 tokens = ["tiktoken>=0.5"]
-all = ["tokenseive[ml]", "tokenseive[mapper]", "tokenseive[tokens]"]
+# Tool-output compression via the headroom-ai SmartCrusher engine. Optional —
+# HeadroomCompressor falls back to a built-in compressor when this is absent.
+headroom = ["headroom-ai>=0.20"]
+all = ["tokenseive[ml]", "tokenseive[mapper]", "tokenseive[tokens]", "tokenseive[headroom]"]
 dev = ["pytest>=7.0", "pytest-cov"]
 
 [project.scripts]
