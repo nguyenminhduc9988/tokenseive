@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tokenseive"
+version = "1.0.0"
+description = "Multi-layer token optimization for LLM applications — compress prompts, map codebases, reduce output"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+authors = [{ name = "TokenSeive Contributors" }]
+keywords = [
+    "llm",
+    "tokens",
+    "compression",
+    "codebase",
+    "optimization",
+    "prompt",
+    "code-graph",
+    "llmlingua",
+    "context-window",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Text Processing :: General",
+]
+
+# Zero required dependencies! Core works with plain Python 3.9+.
+dependencies = []
+
+[project.optional-dependencies]
+ml = ["llmlingua>=0.2", "selective-context>=0.1"]
+mapper = ["tree-sitter>=0.21", "tree-sitter-language-pack>=0.1", "graphifyy>=0.8"]
+tokens = ["tiktoken>=0.5"]
+all = ["tokenseive[ml]", "tokenseive[mapper]", "tokenseive[tokens]"]
+dev = ["pytest>=7.0", "pytest-cov"]
+
+[project.scripts]
+tokenseive = "tokenseive.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/your-username/tokenseive"
+Repository = "https://github.com/your-username/tokenseive"
+Issues = "https://github.com/your-username/tokenseive/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["tokenseive"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q"
