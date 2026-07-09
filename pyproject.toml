@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tokenseive"
-version = "1.1.0"
+version = "1.1.1"
 description = "Multi-layer token optimization for LLM applications — compress prompts, map codebases, reduce output"
 readme = "README.md"
 license = "MIT"
@@ -54,9 +54,9 @@ dev = ["pytest>=7.0", "pytest-cov"]
 tokenseive = "tokenseive.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/your-username/tokenseive"
-Repository = "https://github.com/your-username/tokenseive"
-Issues = "https://github.com/your-username/tokenseive/issues"
+Homepage = "https://nguyenminhduc9988.github.io/"
+Repository = "https://github.com/nguyenminhduc9988/tokenseive/"
+Issues = "https://github.com/nguyenminhduc9988/tokenseive/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["tokenseive"]
