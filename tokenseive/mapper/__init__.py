@@ -24,6 +24,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Set
 
 from .code_graph import build_code_graph, export_graph, graphify_available
+from .gortex_backend import GortexCodebaseMapper, gortex_available
 from .queries import (
     find_class,
     find_function,
@@ -42,12 +43,14 @@ from .repo_map import (
 
 __all__ = [
     "CodebaseMapper",
+    "GortexCodebaseMapper",
     "Symbol",
     "RepoMapEngine",
     "DEFAULT_EXCLUDE_DIRS",
     "SUPPORTED_EXTENSIONS",
     "tree_sitter_available",
     "graphify_available",
+    "gortex_available",
 ]
 
 

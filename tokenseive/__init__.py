@@ -30,7 +30,7 @@ from .compressors import (
     RuleBasedCompressor,
     SelectiveContextCompressor,
 )
-from .mapper import CodebaseMapper
+from .mapper import CodebaseMapper, GortexCodebaseMapper, gortex_available
 from .tool_compression import HeadroomCompressor
 
 __version__ = "1.1.1"
@@ -44,5 +44,7 @@ __all__ = [
     "SelectiveContextCompressor",
     "BehavioralRuleset",
     "CodebaseMapper",
+    "GortexCodebaseMapper",
+    "gortex_available",
     "HeadroomCompressor",
 ]
