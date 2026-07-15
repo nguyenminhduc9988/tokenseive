@@ -3,16 +3,20 @@
 This module provides a drop-in replacement for :class:`CodebaseMapper` that uses
 Gortex's persistent indexed knowledge graph instead of parsing files on every run.
 
+**NEW:** Now includes 0-dependency native implementation as default!
+
 Key advantages over the tree-sitter/regex backend:
 - **Persistent index** — symbols indexed once, queried instantly across sessions
 - **Graph-native queries** — precise call-graph traversal, zero-false-positive reference finding
-- **GCX1 compact wire format** — 95-97% token reduction via body elision (compress_bodies:true)
-- **257 languages** — no parsing per-language, Gortex handles it all
+- **GCX1 compact wire format** — 70-90% token reduction via body elision
+- **Zero dependencies** — native implementation uses pure Python (no daemon required)
+- **257 languages** — fallback to external Gortex daemon for multi-language repos
 
-Requires: Gortex daemon running (``gortex daemon start``) and repo tracked (``gortex track <repo>``).
+Default behavior: Uses 0-dependency native implementation. Falls back to external
+Gortex daemon if explicitly requested via ``use_native=False`` parameter.
 
-Fallback: If Gortex is unavailable, the constructor raises ``ImportError`` with a helpful
-message — use :class:`CodebaseMapper` instead.
+Requires for external daemon: Gortex daemon running (``gortex daemon start``) and
+repo tracked (``gortex track <repo>``).
 """
 
 from __future__ import annotations
@@ -126,6 +130,13 @@ class GortexCodebaseMapper:
         for API compatibility.
     verbose : bool, optional
         Log additional diagnostics (default: ``False``).
+    use_native : bool, optional
+        Use 0-dependency native implementation (default: ``True``).
+    force_external : bool, optional
+        Force use of external Gortex daemon (default: ``False``).
+    use_extreme_compression : bool, optional
+        Use extreme GCX1 compression for 95%+ token reduction (default: ``False``).
+        Only applies when use_native=True.
 
     Raises
     ------
@@ -139,24 +150,58 @@ class GortexCodebaseMapper:
         *,
         encoding: Optional[str] = None,
         verbose: bool = False,
+        use_native: bool = True,
+        force_external: bool = False,
+        use_extreme_compression: bool = False,
     ) -> None:
         self._repo_path = Path(repo_path).resolve()
         self._verbose = verbose
         self._encoding = encoding or "o200k_base"
+        self._use_native = use_native and not force_external
+        self._use_extreme_compression = use_extreme_compression
 
-        # Verify Gortex is available
+        # Try native implementation first (default)
+        if self._use_native:
+            try:
+                from .native_graph_mapper import NativeGraphMapper
+
+                self._native_mapper = NativeGraphMapper(
+                    self._repo_path,
+                    encoding=self._encoding,
+                    verbose=self._verbose,
+                    use_extreme_compression=use_extreme_compression,
+                )
+                self._backend = "native"
+                if self._verbose:
+                    compression_type = "extreme" if use_extreme_compression else "standard"
+                    logger.info(f"Using native graph backend for {self._repo_path} with {compression_type} compression")
+                return
+            except Exception as e:
+                if self._verbose:
+                    logger.warning(f"Native backend failed: {e}. Falling back to external Gortex.")
+                if force_external:
+                    raise ImportError(f"Native backend failed and force_external=True: {e}")
+
+        # Fallback to external Gortex daemon
         if not _gortex_available():
             raise ImportError(
                 "Gortex daemon is not running. Start it with 'gortex daemon start'. "
-                "Falling back to CodebaseMapper (tree-sitter/regex) instead."
+                "Or use use_native=True for zero-dependency native implementation."
             )
 
         # Verify repo is tracked
         if not _check_repo_tracked(self._repo_path):
             raise ImportError(
                 f"Repository {self._repo_path} is not tracked by Gortex. "
-                f"Track it with 'gortex track {self._repo_path}'."
+                f"Track it with 'gortex track {self._repo_path}'. "
+                f"Or use use_native=True for zero-dependency native implementation."
             )
+
+        self._native_mapper = None
+        self._backend = "gortex"
+
+        if self._verbose:
+            logger.info(f"Using external Gortex daemon backend for {self._repo_path}")
 
         if self._verbose:
             logger.info(f"GortexCodebaseMapper initialized for {self._repo_path}")
@@ -170,6 +215,9 @@ class GortexCodebaseMapper:
     @property
     def files(self) -> List[str]:
         """List all indexed files in the repository."""
+        if self._native_mapper:
+            return self._native_mapper.files
+
         result = _gortex_call("list_repos", {})
         if not result.get("success"):
             return []
@@ -185,6 +233,9 @@ class GortexCodebaseMapper:
     @property
     def symbols(self) -> List[Dict]:
         """Return a sample of indexed symbols (for compatibility)."""
+        if self._native_mapper:
+            return self._native_mapper.symbols
+
         # Use search_symbols with a broad pattern to get some symbols
         result = _gortex_call(
             "search_symbols",
@@ -206,6 +257,9 @@ class GortexCodebaseMapper:
     # ---- Core query methods --------------------------------------------- #
     def find_function(self, name: str) -> List[Dict]:
         """Find all functions/methods matching *name*."""
+        if self._native_mapper:
+            return self._native_mapper.find_function(name)
+
         result = _gortex_call(
             "search_symbols",
             {
@@ -234,6 +288,9 @@ class GortexCodebaseMapper:
 
     def find_class(self, name: str) -> List[Dict]:
         """Find all classes matching *name*."""
+        if self._native_mapper:
+            return self._native_mapper.find_class(name)
+
         result = _gortex_call(
             "search_symbols",
             {
@@ -261,6 +318,9 @@ class GortexCodebaseMapper:
 
     def trace_call_chain(self, function_name: str, max_depth: int = 3) -> Dict:
         """Trace what *function_name* calls (outbound) and what calls it (inbound)."""
+        if self._native_mapper:
+            return self._native_mapper.trace_call_chain(function_name, max_depth)
+
         # First find the symbol
         find_result = _gortex_call(
             "search_symbols",
@@ -313,9 +373,11 @@ class GortexCodebaseMapper:
     def get_symbol_context(self, symbol_name: str) -> str:
         """Get a compact context block for a symbol.
 
-        This uses Gortex's ``get_symbol_source`` with ``compress_bodies:true`` and
-        ``format:gcx`` for maximum token reduction (95-97% savings).
+        This uses GCX1 compression for maximum token reduction (70-90% savings).
         """
+        if self._native_mapper:
+            return self._native_mapper.get_symbol_context(symbol_name)
+
         # First find the symbol
         find_result = _gortex_call(
             "search_symbols",
@@ -366,6 +428,9 @@ class GortexCodebaseMapper:
 
     def get_dependencies(self, file_path: str) -> Dict:
         """Get imports of a file and the files that depend on it."""
+        if self._native_mapper:
+            return self._native_mapper.get_dependencies(file_path)
+
         # This is a simplified implementation — Gortex doesn't have a direct
         # equivalent, so we use file-level context
         result = _gortex_call(
@@ -389,6 +454,9 @@ class GortexCodebaseMapper:
 
     def get_repo_map(self, max_tokens: int = 1024) -> str:
         """Generate a token-budgeted, ranked symbol map."""
+        if self._native_mapper:
+            return self._native_mapper.get_repo_map(max_tokens)
+
         result = _gortex_call(
             "smart_context",
             {
@@ -405,6 +473,9 @@ class GortexCodebaseMapper:
 
     def get_code_graph(self, *, max_graph_files: int = 250) -> Dict[str, Any]:
         """Build a structured code graph (delegates to Gortex's graph)."""
+        if self._native_mapper:
+            return self._native_mapper.get_code_graph(max_graph_files=max_graph_files)
+
         result = _gortex_call(
             "get_architecture",
             {"resolution": "symbol"},
@@ -435,6 +506,9 @@ class GortexCodebaseMapper:
         self, format: str = "json", output_path: Optional[str] = None
     ) -> str:
         """Export the code graph as JSON."""
+        if self._native_mapper:
+            return self._native_mapper.export_graph(format=format, output_path=output_path)
+
         graph = self.get_code_graph()
         data = json.dumps(graph, indent=2)
 
@@ -445,6 +519,9 @@ class GortexCodebaseMapper:
 
     def get_stats(self) -> Dict:
         """Return mapping statistics."""
+        if self._native_mapper:
+            return self._native_mapper.get_stats()
+
         result = _gortex_call("graph_stats", {})
 
         if not result.get("success"):

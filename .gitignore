@@ -80,3 +80,6 @@ dmypy.json
 # OS
 .DS_Store
 Thumbs.db
+
+# TokenSeive native graph runtime cache (regenerated on demand)
+.tokenseive_graph.json

@@ -25,6 +25,10 @@ from typing import Any, Dict, List, Optional, Set
 
 from .code_graph import build_code_graph, export_graph, graphify_available
 from .gortex_backend import GortexCodebaseMapper, gortex_available
+from .native_graph_mapper import NativeGraphMapper
+from .gcx1_compression import GCX1Compressor
+from .gcx1_extreme_compression import GCX1ExtremeCompressor
+from .graph_engine import PersistentGraphIndex
 from .queries import (
     find_class,
     find_function,
@@ -44,6 +48,10 @@ from .repo_map import (
 __all__ = [
     "CodebaseMapper",
     "GortexCodebaseMapper",
+    "NativeGraphMapper",
+    "GCX1Compressor",
+    "GCX1ExtremeCompressor",
+    "PersistentGraphIndex",
     "Symbol",
     "RepoMapEngine",
     "DEFAULT_EXCLUDE_DIRS",
