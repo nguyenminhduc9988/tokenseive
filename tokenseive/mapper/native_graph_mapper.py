@@ -1,14 +1,15 @@
-"""Native graph mapper — 0-dependency Gortex reimplementation.
+"""Native graph mapper — 0-dependency graph-native code intelligence.
 
-This module provides a pure Python implementation of Gortex's core capabilities
-using PersistentGraphIndex for graph storage and GCX1Compressor for token reduction.
+This module provides a pure Python implementation of TokenSeive's graph-native
+capabilities, using PersistentGraphIndex for graph storage and GCX1Compressor
+for token reduction.
 
 Key features:
 - **Zero external dependencies** — pure Python AST manipulation
 - **Persistent index** — JSON-based cross-session caching
 - **Graph-native queries** — call chains, symbol search, dependency tracking
 - **GCX1 compression** — 70-90% token reduction via body elision
-- **API compatible** — drop-in replacement for GortexCodebaseMapper
+- **API compatible** — drop-in replacement for GraphCodebaseMapper
 """
 
 from __future__ import annotations
@@ -28,8 +29,8 @@ logger = logging.getLogger("tokenseive.mapper.native_graph")
 class NativeGraphMapper:
     """0-dependency graph-native codebase mapper.
 
-    This class provides the same API surface as :class:`GortexCodebaseMapper` but
-    uses pure Python implementations instead of an external Gortex daemon.
+    This class provides the same API surface as :class:`GraphCodebaseMapper` but
+    exposes the native graph implementation directly with no external dependencies.
 
     Example
     -------

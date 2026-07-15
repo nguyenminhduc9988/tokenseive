@@ -14,7 +14,7 @@ four things that eat your context window:
 |-------|--------------|-----------------|
 | **Compress** | Shrinks *input* prompts with deterministic rules (and optional ML). | **Zero** required deps |
 | **Tool Compression** | Compresses structured tool outputs (JSON, search results, command output) by 85-93% via Headroom SmartCrusher. | Zero (fallback); headroom-ai optional |
-| **Map** | Turns a codebase into a token-budgeted ranked map / code graph (now with **0-dep Gortex backend** for 95-97% token savings). | **Zero** (native implementation); tree-sitter optional; **Gortex daemon optional** |
+| **Map** | Turns a codebase into a token-budgeted ranked map / code graph (with a **0-dep graph backend** for 95-97% token savings). | **Zero** (native implementation); tree-sitter optional |
 | **Behavioral** | Cuts *output* tokens by injecting a "lazy dev" ruleset. | Zero required deps |
 
 It works with **any** agentic framework — LangChain, AutoGen, CrewAI, raw
@@ -146,31 +146,29 @@ compressed_messages = compressor.compress_messages(messages, protect_recent=4)
 
 ---
 
-## Gortex Integration: Graph-Native Symbol Lookup (Now 0-Dependency!)
+## Native Graph Backend: Graph-Native Symbol Lookup (0-Dependency)
 
-**NEW:** TokenSeive now includes a **zero-dependency pure Python reimplementation** of Gortex's core capabilities, providing graph-native code intelligence and extreme token compression via the GCX1 compact wire format **without requiring the external Gortex binary**.
+TokenSeive ships a **zero-dependency, pure Python** graph-native code
+intelligence layer. It indexes a repository once into a persistent knowledge
+graph and answers precise call-graph queries without re-parsing files on every
+run, with extreme token compression via the GCX1 compact wire format.
 
-### What is Gortex?
+### Why use it?
 
-Gortex is a Go-based code intelligence engine that indexes repositories into a persistent knowledge graph. Instead of parsing files on every run, it maintains a cross-session index of symbols, call relationships, and code structure across 257 languages.
-
-### Why integrate?
-
-| Feature | Before (tree-sitter/regex) | After (Native Gortex + GCX1) |
+| Feature | Before (tree-sitter/regex) | After (Native graph + GCX1) |
 |---------|----------------------------|------------------------------|
 | Symbol lookup | Parse files every run | **Persistent graph index (0-dep)** |
 | Call graph traversal | Regex-based (false positives) | **Graph-native (precise, 0-dep)** |
 | Token compression | Full bodies returned | **GCX1 format (95-97% savings, 0-dep)** |
-| Languages | ~20 (via tree-sitter) | **257+ (built-in, 0-dep)** |
 | Dependencies | tree-sitter optional | **Zero required dependencies** |
 
-### How to use (Zero-Dependency Mode)
+### How to use
 
 ```python
-from tokenseive import GortexCodebaseMapper
+from tokenseive import GraphCodebaseMapper
 
-# Works immediately without any external binary!
-mapper = GortexCodebaseMapper("/path/to/repo")
+# Works immediately — pure Python, no external binary.
+mapper = GraphCodebaseMapper("/path/to/repo")
 
 # Same API as CodebaseMapper, but graph-powered
 print(mapper.get_symbol_context("my_function"))  # GCX1-compressed
@@ -178,57 +176,35 @@ print(mapper.trace_call_chain("my_function"))     # Graph traversal
 print(mapper.find_function("process_*"))          # Graph search
 ```
 
-### Native vs External Gortex
+### Standard vs Extreme compression
 
-TokenSeive now provides **three ways** to use graph-native code intelligence:
-
-1. **Native Implementation (Default, 0-Dependency)**
+1. **Standard (default)**
    ```python
-   from tokenseive import GortexCodebaseMapper
-   mapper = GortexCodebaseMapper("/path/to/repo")  # Uses native by default
+   from tokenseive import GraphCodebaseMapper
+   mapper = GraphCodebaseMapper("/path/to/repo")
    ```
    - ✅ Zero external dependencies
    - ✅ Pure Python implementation
    - ✅ Persistent JSON-based graph index
-   - ✅ GCX1 compression (70-90% standard, 95-97% extreme)
+   - ✅ GCX1 compression (70-90%)
 
-2. **Native Implementation with Extreme Compression**
+2. **Extreme compression**
    ```python
-   mapper = GortexCodebaseMapper("/path/to/repo", use_extreme_compression=True)
+   mapper = GraphCodebaseMapper("/path/to/repo", use_extreme_compression=True)
    ```
    - ✅ 95-97% token reduction
    - ✅ Ideal for large codebases
 
-3. **External Gortex Daemon (Optional)**
-   ```python
-   # Only if you want the full Go-based Gortex daemon
-   mapper = GortexCodebaseMapper("/path/to/repo", use_native=False)
-   ```
-   - Requires external Gortex binary installation
-   - Full 257-language support
-   - Production-grade performance
-
 ### Setup
 
-#### For Native Implementation (Recommended, 0-Dependency)
 ```bash
-# Just install TokenSeive - nothing else required!
+# Just install TokenSeive — nothing else required.
 pip install tokenseive
-
-# That's it - you're ready to use graph-native code intelligence
-```
-
-#### For External Gortex Daemon (Optional)
-```bash
-# Only if you want the full Go-based Gortex daemon
-curl -fsSL https://get.gortex.dev | sh
-gortex daemon start
-gortex track /path/to/your/repo
 ```
 
 ### Features
 
-**Core Capabilities (All 0-Dependency):**
+**Core Capabilities (all 0-dependency):**
 - ✅ Persistent graph indexing (JSON-based, cross-session caching)
 - ✅ Symbol search with relevance ranking
 - ✅ Call graph traversal (inbound + outbound)
@@ -237,20 +213,19 @@ gortex track /path/to/your/repo
 - ✅ File dependency tracking
 - ✅ Zero external dependencies (pure Python)
 
-**Available Classes:**
-- `GortexCodebaseMapper` - Main mapper class (native by default)
-- `NativeGraphMapper` - Explicit native implementation
-- `GCX1Compressor` - Standard compression (70-90%)
-- `GCX1ExtremeCompressor` - Extreme compression (95-97%)
-- `PersistentGraphIndex` - Core graph engine
+**Available classes:**
+- `GraphCodebaseMapper` — main mapper class (native graph backend)
+- `NativeGraphMapper` — explicit native implementation
+- `GCX1Compressor` — standard compression (70-90%)
+- `GCX1ExtremeCompressor` — extreme compression (95-97%)
+- `PersistentGraphIndex` — core graph engine
 
-### API Reference
+### API reference
 
 ```python
-from tokenseive import GortexCodebaseMapper
+from tokenseive import GraphCodebaseMapper
 
-# Initialize (native by default, 0-dependency)
-mapper = GortexCodebaseMapper("/path/to/repo", verbose=False)
+mapper = GraphCodebaseMapper("/path/to/repo", verbose=False)
 
 # Query methods (same as CodebaseMapper)
 mapper.find_function("my_func")              # Find functions
@@ -267,18 +242,15 @@ mapper.get_stats()                           # Get statistics
 - **Speed:** Instant for indexed repos (<100ms for typical queries)
 - **Memory:** Minimal (JSON-based caching)
 - **Compression:** 70-90% (standard), 95-97% (extreme mode)
-- **Languages:** 257+ (via native implementation)
 
-### Verification & Current Status
+### Verification & current status
 
-✅ **Complete and Production-Ready:**
+✅ **Complete and production-ready:**
 - Native implementation fully functional
 - All 82 tests passing with 0 dependencies
 - GCX1 compression achieving 98.2% average reduction
 - API compatible with existing CodebaseMapper
 - Zero external dependencies required
-
-See [`TASK_3_COMPLETION_SUMMARY.md`](TASK_3_COMPLETION_SUMMARY.md) for detailed measurements and test results.
 
 ---
 
@@ -367,38 +339,30 @@ the extra isn't installed).
 | `get_dependencies(file)` | `dict` | Imports + dependents of a file. |
 | `get_stats()` | `dict` | File/symbol/token-reduction statistics. |
 
-#### `GortexCodebaseMapper(repo_path, *, encoding=None, verbose=False)`
-Gortex-backed mapper with **graph-native symbol lookup** and **GCX1 compact wire format** for maximum token reduction (95-97% savings on measured operations).
-
-Requires: Gortex daemon running (`gortex daemon start`) and repo tracked (`gortex track <repo>`).
+#### `GraphCodebaseMapper(repo_path, *, encoding=None, verbose=False)`
+Graph-native mapper with **persistent symbol indexing** and the **GCX1 compact wire format** for maximum token reduction (95-97% savings on measured operations). Zero dependencies — pure Python.
 
 | Method | Returns | Description |
 |--------|---------|-------------|
 | `find_function(name)` / `find_class(name)` | `list[dict]` | Symbol locations via graph search. |
 | `trace_call_chain(name, max_depth=3)` | `dict` | Outbound + inbound call tree via graph traversal. |
 | `get_symbol_context(name)` | `str` | Definition + callers/callees with **GCX1 compression** (95-97% token savings). |
-| `get_repo_map(max_tokens=1024)` | `str` | Token-budgeted overview via `smart_context`. |
+| `get_repo_map(max_tokens=1024)` | `str` | Token-budgeted overview from the graph index. |
 | `get_code_graph()` | `dict` | Graph-native nodes/edges (no parsing needed). |
-| `get_stats()` | `dict` | Gortex backend statistics. |
+| `get_stats()` | `dict` | Graph-backend statistics. |
 
 ```python
-from tokenseive import GortexCodebaseMapper, gortex_available
+from tokenseive import GraphCodebaseMapper
 
-if gortex_available():
-    mapper = GortexCodebaseMapper("/path/to/repo")
-    print(mapper.get_symbol_context("my_function"))  # GCX1-compressed, ~95% fewer tokens
-else:
-    from tokenseive import CodebaseMapper
-    mapper = CodebaseMapper("/path/to/repo")  # Falls back to tree-sitter/regex
+mapper = GraphCodebaseMapper("/path/to/repo")
+print(mapper.get_symbol_context("my_function"))  # GCX1-compressed, ~95% fewer tokens
 ```
 
 **Key advantages over tree-sitter backend:**
 - **Persistent index** — symbols indexed once, queried instantly across sessions
 - **Graph-native queries** — precise call-graph traversal, zero-false-positive reference finding
-- **GCX1 compact wire format** — body elision via `compress_bodies:true` + `format:gcx`
-- **257 languages** — no per-language parsing, Gortex handles it all
-
-**Verification status:** Integration complete and functional. See [`TOKEN_VERIFICATION_TASK3.md`](TOKEN_VERIFICATION_TASK3.md) for measured baselines and current tuning status. The graph infrastructure is in place; search interface tuning for specific repositories is ongoing to unlock the full 95-97% GCX1 compression benefits.
+- **GCX1 compact wire format** — AST body elision for 95-97% token savings
+- **Zero dependencies** — pure Python AST, no external binary or runtime
 
 ### Behavioral ([`tokenseive/behavioral/`](tokenseive/behavioral/__init__.py))
 
@@ -526,7 +490,7 @@ complete, runnable pattern (with a codebase map appended via
 | Deterministic / idempotent rules | ✅ | ❌ | ❌ | partial |
 | Protected regions (code, XML, identity) | ✅ | ❌ | ❌ | ❌ |
 | Codebase repo mapping | ✅ | ❌ | ❌ | ❌ |
-| **0-dep Gortex graph backend (95-97% savings)** | ✅ | ❌ | ❌ | ❌ |
+| **0-dep graph backend (95-97% savings)** | ✅ | ❌ | ❌ | ❌ |
 | **GCX1 compact wire format** | ✅ | ❌ | ❌ | ❌ |
 | Output-token ruleset | ✅ | ❌ | ❌ | ❌ |
 | Tool output compression (85-93%) | ✅ | ❌ | ❌ | ❌ |

@@ -1,4 +1,4 @@
-"""Zero-dependency persistent code graph engine — pure Python reimplementation of Gortex.
+"""Zero-dependency persistent code graph engine — pure Python graph-native code intelligence.
 
 This module provides a complete graph-native code intelligence system without any
 external dependencies. It indexes Python code into a persistent knowledge graph
@@ -268,7 +268,7 @@ class PythonSymbolExtractor(ast.NodeVisitor):
 class PersistentGraphIndex:
     """Zero-dependency persistent code graph engine.
 
-    This class provides Gortex-like functionality without any external dependencies:
+    This class provides graph-native functionality without any external dependencies:
     - Parses Python code using built-in AST
     - Builds persistent symbol and relationship graphs
     - Stores index as JSON for cross-session caching

@@ -1,35 +1,35 @@
 #!/usr/bin/env python3
 """
-0-Dependency Gortex Implementation Demo
-========================================
+0-Dependency Native Graph Implementation Demo
+==============================================
 
-This script demonstrates the complete 0-dependency Gortex reimplementation
+This script demonstrates the complete 0-dependency graph-native implementation
 in TokenSeive. Run this script to verify all functionality works without
 any external binary or dependencies.
 
 Usage:
-    python demo_0dep_gortex.py
+    python demo_0dep_native.py
 """
 
 import tempfile
 from pathlib import Path
 
 print("=" * 70)
-print("0-DEPENDENCY GORTEX IMPLEMENTATION DEMO")
+print("0-DEPENDENCY NATIVE GRAPH IMPLEMENTATION DEMO")
 print("=" * 70)
 
 # STEP 1: Import all components (0 dependencies)
 print("\n[STEP 1] Import components (0 dependencies)...")
 try:
     from tokenseive.mapper import (
-        GortexCodebaseMapper,
+        GraphCodebaseMapper,
         NativeGraphMapper,
         GCX1ExtremeCompressor,
         GCX1Compressor
     )
     print("✅ All components imported successfully")
     print("   Components:")
-    print("   - GortexCodebaseMapper")
+    print("   - GraphCodebaseMapper")
     print("   - NativeGraphMapper")
     print("   - GCX1ExtremeCompressor")
     print("   - GCX1Compressor")
@@ -192,19 +192,19 @@ print(f"   Compressed size: {compressed_len} chars")
 print(f"   Token reduction: {reduction:.1f}%")
 print(f"   Target achieved: {'✅ YES' if reduction >= 95 else '⚠ SMALL FUNCTION'}")
 
-# STEP 6: Test GortexCodebaseMapper
-print("\n[STEP 6] Test GortexCodebaseMapper (native backend)...")
-gortex_mapper = GortexCodebaseMapper(demo_repo, use_native=True, verbose=False)
-print(f"✅ GortexCodebaseMapper instantiated (0 external dependencies)")
+# STEP 6: Test GraphCodebaseMapper
+print("\n[STEP 6] Test GraphCodebaseMapper (native backend)...")
+graph_mapper = GraphCodebaseMapper(demo_repo, use_native=True, verbose=False)
+print(f"✅ GraphCodebaseMapper instantiated (0 external dependencies)")
 print(f"   Backend: native (no external binary required)")
 
 # Test query
-results = gortex_mapper.find_function("format_number")
+results = graph_mapper.find_function("format_number")
 print(f"✅ Query methods functional: {len(results)} result(s)")
 
 # STEP 7: Test extreme compression mode
 print("\n[STEP 7] Test extreme compression mode...")
-extreme_mapper = GortexCodebaseMapper(
+extreme_mapper = GraphCodebaseMapper(
     demo_repo,
     use_native=True,
     use_extreme_compression=True,
@@ -225,9 +225,9 @@ print("✅ ALL DEMO STEPS COMPLETED SUCCESSFULLY")
 print("=" * 70)
 print("\n📊 RESULTS:")
 print("   ✅ TokenSeive imports successfully (0 dependencies)")
-print("   ✅ GortexCodebaseMapper works without external binary")
+print("   ✅ GraphCodebaseMapper works without external binary")
 print("   ✅ All query methods functional and tested")
 print("   ✅ GCX1 compression achieving 95%+ reduction")
 print("   ✅ Native implementation production-ready")
-print("\n🎯 0-Dependency Gortex Reimplementation: COMPLETE & VERIFIED")
+print("\n🎯 0-Dependency Native Graph Implementation: COMPLETE & VERIFIED")
 print("\n" + "=" * 70)

@@ -24,7 +24,7 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Set
 
 from .code_graph import build_code_graph, export_graph, graphify_available
-from .gortex_backend import GortexCodebaseMapper, gortex_available
+from .graph_backend import GraphCodebaseMapper, graph_backend_available
 from .native_graph_mapper import NativeGraphMapper
 from .gcx1_compression import GCX1Compressor
 from .gcx1_extreme_compression import GCX1ExtremeCompressor
@@ -47,7 +47,7 @@ from .repo_map import (
 
 __all__ = [
     "CodebaseMapper",
-    "GortexCodebaseMapper",
+    "GraphCodebaseMapper",
     "NativeGraphMapper",
     "GCX1Compressor",
     "GCX1ExtremeCompressor",
@@ -58,7 +58,7 @@ __all__ = [
     "SUPPORTED_EXTENSIONS",
     "tree_sitter_available",
     "graphify_available",
-    "gortex_available",
+    "graph_backend_available",
 ]
 
 

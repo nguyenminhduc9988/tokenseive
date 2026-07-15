@@ -1,4 +1,4 @@
-"""GCX1 compact wire format — pure Python implementation of Gortex's compression.
+"""GCX1 compact wire format — pure Python implementation of the GCX1 compression.
 
 This module provides extreme token reduction (95-97%) for code bodies using
 AST-based body elision. It preserves function/class signatures and structure
@@ -29,7 +29,7 @@ from typing import Optional, Tuple, Union
 
 
 class GCX1Compressor:
-    """Pure Python implementation of Gortex's GCX1 compression.
+    """Pure Python implementation of the GCX1 compression.
 
     This compressor uses AST manipulation to achieve extreme token reduction
     by replacing function/class bodies with compact placeholders while
